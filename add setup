@@ -824,69 +824,59 @@ def subtitler_get_video_size(path:str) -> tuple[int,int]:
 
 
 def subtitler_create_ass_content(
-segs, w, h,
-font, fs_pct, txt_col, txt_alpha,
-bold, italic, ul, strike,
-align, margin_pct, wrap, char_spacing,
-use_out, out_w, use_shad, shad_d, out_col,
-use_bg, bg_col, bg_alpha,
-speed=1.0
+    segs,
+    w,
+    h,
+    font,
+    fs_pct,
+    txt_col,
+    txt_alpha,
+    bold,
+    italic,
+    ul,
+    strike,
+    align,
+    margin_pct,
+    wrap,
+    char_spacing,
+    use_out,
+    out_w,
+    use_shad,
+    shad_d,
+    out_col,
+    use_bg,
+    bg_col,
+    bg_alpha,
+    speed=1.0,
 ) -> str:
- """ASSファイルのテキスト内容を生成する (動画字幕付け用)"""
- fs = int(h * (fs_pct / 100))
- mv = int(h * (margin_pct / 100))
- prim_c = hex_to_ass(txt_col, txt_alpha)
+    """ASSファイルのテキスト内容を生成する (動画字幕付け用)"""
+    fs = int(h * (fs_pct / 100))
+    mv = int(h * (margin_pct / 100))
+    prim_c = hex_to_ass(txt_col, txt_alpha)
 
+    if use_bg:
+        border_style = 3
+        out_c_ass = hex_to_ass(bg_col, bg_alpha)
+        back_c = "&HFF000000"
+    else:
+        border_style = 1
+        out_c_ass = hex_to_ass(out_col, 100)
+        if use_shad:
+            back_c = hex_to_ass(out_col, 50)
+        else:
+            back_c = "&HFF000000"
 
+    bold_f, italic_f = ("-1" if bold else "0"), ("-1" if italic else "0")
+    ul_f, strike_f = ("-1" if ul else "0"), ("-1" if strike else "0")
 
+    if use_bg:
+        final_out_w = out_w
+    else:
+        final_out_w = out_w if use_out else 0
+    final_shad_d = shad_d if use_shad else 0
 
-
-
-
-
- if use_bg:
-     border_style = 3
-     out_c_ass = hex_to_ass(bg_col, bg_alpha)
-     back_c = "&HFF000000"
- else:
-     border_style = 1
-     out_c_ass = hex_to_ass(out_col, 100)
-     if use_shad:
-         back_c = hex_to_ass(out_col, 50)
-     else:
-         back_c = "&HFF000000"
-
-
-
-
-
-
-
-
- bold_f, italic_f = ("-1" if bold else "0"), ("-1" if italic else "0")
- ul_f, strike_f = ("-1" if ul else "0"), ("-1" if strike else "0")
-
-
-
-
-
-
-
-
- if use_bg:
-     final_out_w = out_w
- else:
-     final_out_w = out_w if use_out else 0
- final_shad_d = shad_d if use_shad else 0
-
-
-
-
-
-
-
-
- header = textwrap.dedent(f"""
+    header = textwrap.dedent(
+        f"""
 [Script Info]
 ScriptType: v4.00+
 PlayResX: {w}
@@ -896,15 +886,24 @@ Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackC
 Style: DEF,{font},{fs},{prim_c},{prim_c},{out_c_ass},{back_c},{bold_f},{italic_f},{ul_f},{strike_f},100,100,{char_spacing},0,{border_style},{final_out_w},{final_shad_d},{align},10,10,{mv},1
 [Events]
 Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
-""").strip()
+"""
+    ).strip()
 
-
-
-
-
-
-
-
+    events = ""
+    if float(speed) != 1.0:
+        print(f"[DEBUG] 字幕タイミングを再生速度 {speed}x に合わせて調整します。")
+    for s in segs:
+        text = s["text"].strip().replace('\n', ' ')
+        if wrap > 0 and len(text) > wrap:
+            text = r"\N".join(textwrap.wrap(text, int(wrap)))
+        start_time = s['start'] / float(speed)
+        end_time = s['end'] / float(speed)
+        if float(speed) != 1.0:
+            print(
+                f"  [DEBUG] ASSタイムコード調整: original=({s['start']:.2f}s, {s['end']:.2f}s) -> adjusted=({start_time:.2f}s, {end_time:.2f}s)"
+            )
+        events += f"Dialogue: 0,{tc(start_time)},{tc(end_time)},DEF,,0,0,0,,{text}\n"
+    return header + '\n' + events
  events = ""
  if float(speed) != 1.0:
    print(f"[DEBUG] 字幕タイミングを再生速度 {speed}x に合わせて調整します。")
@@ -920,7 +919,66 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
     return header + "\n" + events
 
 
+# ------------------------------------------------------------------------------
+# プリセット⇔UI値の変換ヘルパー
+# ------------------------------------------------------------------------------
 
+def _podcast_style_from_ui(font, fs_pct, txt_col, txt_alpha, align, margin_pct, bold, italic, underline, strike,
+                           wrap, char_spacing, speed, use_out, out_w, use_shad, shad_d, out_col, use_bg, bg_col, bg_alpha):
+    return {
+        "font": font,
+        "fs_pct": fs_pct,
+        "txt_col": txt_col,
+        "txt_alpha": txt_alpha,
+        "align": align,
+        "margin_pct": margin_pct,
+        "bold": bold,
+        "italic": italic,
+        "underline": underline,
+        "strike": strike,
+        "wrap": wrap,
+        "char_spacing": char_spacing,
+        "speed": speed,
+        "use_out": use_out,
+        "out_w": out_w,
+        "use_shad": use_shad,
+        "shad_d": shad_d,
+        "out_col": out_col,
+        "use_bg": use_bg,
+        "bg_col": bg_col,
+        "bg_alpha": bg_alpha,
+    }
+
+
+def _subtitler_style_from_ui(font, fs_pct, txt_col, txt_alpha, align, margin_pct, bold, italic, underline, strike,
+                             wrap, char_spacing, speed, use_out, out_w, use_shad, shad_d, out_col, use_bg, bg_col, bg_alpha):
+    return {
+        "font": font,
+        "fs_pct": fs_pct,
+        "txt_col": txt_col,
+        "txt_alpha": txt_alpha,
+        "align": align,
+        "margin_pct": margin_pct,
+        "bold": bold,
+        "italic": italic,
+        "underline": underline,
+        "strike": strike,
+        "wrap": wrap,
+        "char_spacing": char_spacing,
+        "speed": speed,
+        "use_out": use_out,
+        "out_w": out_w,
+        "use_shad": use_shad,
+        "shad_d": shad_d,
+        "out_col": out_col,
+        "use_bg": use_bg,
+        "bg_col": bg_col,
+        "bg_alpha": bg_alpha,
+    }
+
+
+def _style_to_outputs(style: dict):
+    return tuple(style[k] for k in STYLE_KEYS)
 
 
 

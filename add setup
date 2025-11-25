@@ -904,6 +904,83 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
             )
         events += f"Dialogue: 0,{tc(start_time)},{tc(end_time)},DEF,,0,0,0,,{text}\n"
     return header + '\n' + events
+ events = ""
+ if float(speed) != 1.0:
+   print(f"[DEBUG] 字幕タイミングを再生速度 {speed}x に合わせて調整します。")
+ for s in segs:
+     text = s["text"].strip().replace("\n", " ")
+     if wrap > 0 and len(text) > wrap:
+          text = r"\N".join(textwrap.wrap(text, int(wrap)))
+     start_time = s['start'] / float(speed)
+     end_time = s['end'] / float(speed)
+     if float(speed) != 1.0:
+         print(f"  [DEBUG] ASSタイムコード調整: original=({s['start']:.2f}s, {s['end']:.2f}s) -> adjusted=({start_time:.2f}s, {end_time:.2f}s)")
+     events += f"Dialogue: 0,{tc(start_time)},{tc(end_time)},DEF,,0,0,0,,{text}\n"
+    return header + "\n" + events
+
+
+# ------------------------------------------------------------------------------
+# プリセット⇔UI値の変換ヘルパー
+# ------------------------------------------------------------------------------
+
+def _podcast_style_from_ui(font, fs_pct, txt_col, txt_alpha, align, margin_pct, bold, italic, underline, strike,
+                           wrap, char_spacing, speed, use_out, out_w, use_shad, shad_d, out_col, use_bg, bg_col, bg_alpha):
+    return {
+        "font": font,
+        "fs_pct": fs_pct,
+        "txt_col": txt_col,
+        "txt_alpha": txt_alpha,
+        "align": align,
+        "margin_pct": margin_pct,
+        "bold": bold,
+        "italic": italic,
+        "underline": underline,
+        "strike": strike,
+        "wrap": wrap,
+        "char_spacing": char_spacing,
+        "speed": speed,
+        "use_out": use_out,
+        "out_w": out_w,
+        "use_shad": use_shad,
+        "shad_d": shad_d,
+        "out_col": out_col,
+        "use_bg": use_bg,
+        "bg_col": bg_col,
+        "bg_alpha": bg_alpha,
+    }
+
+
+def _subtitler_style_from_ui(font, fs_pct, txt_col, txt_alpha, align, margin_pct, bold, italic, underline, strike,
+                             wrap, char_spacing, speed, use_out, out_w, use_shad, shad_d, out_col, use_bg, bg_col, bg_alpha):
+    return {
+        "font": font,
+        "fs_pct": fs_pct,
+        "txt_col": txt_col,
+        "txt_alpha": txt_alpha,
+        "align": align,
+        "margin_pct": margin_pct,
+        "bold": bold,
+        "italic": italic,
+        "underline": underline,
+        "strike": strike,
+        "wrap": wrap,
+        "char_spacing": char_spacing,
+        "speed": speed,
+        "use_out": use_out,
+        "out_w": out_w,
+        "use_shad": use_shad,
+        "shad_d": shad_d,
+        "out_col": out_col,
+        "use_bg": use_bg,
+        "bg_col": bg_col,
+        "bg_alpha": bg_alpha,
+    }
+
+
+def _style_to_outputs(style: dict):
+    return tuple(style[k] for k in STYLE_KEYS)
+
+
 
 # ------------------------------------------------------------------------------
 # プリセット⇔UI値の変換ヘルパー
